@@ -1,5 +1,7 @@
 # sync-s3-to-cloudstorage
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/hasantayyar/sync-s3-to-cloudstorage.svg)](https://greenkeeper.io/)
+
 Event handler as Google Cloud Function for S3 create object event.
 
 ## Deploy
