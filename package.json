@@ -1,0 +1,8 @@
+{
+  "name": "sync-s3-to-cloudstorage",
+  "version": "0.0.1",
+  "dependencies": {
+    "@google-cloud/storage": "^3.0.4",
+    "aws-sdk": "^2.570.0"
+  }
+}
