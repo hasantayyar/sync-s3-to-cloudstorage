@@ -1,7 +1,7 @@
 /**
 *
 * This function will be triggerred via AWS SNS
-* which listens the create object event on a bucket
+* which should be configured to listen the PUT operations on a S3 bucket
 *
 */
 const {Storage} = require('@google-cloud/storage');
@@ -10,10 +10,16 @@ const s3 = new AWS.S3()
 const storage = new Storage()
 const gcloudBucket = storage.bucket(process.env.GCLOUD_BUCKET);
 
+/**
+* @TODO: add more validations
+*/
 const validateBody = (body) => {
   return (!!body.TopicArn && !!body.Signature && !!body.Message)
 }
 
+/**
+* @TODO: Add retry for every api operation
+*/
 exports.sync = async (req, res) => {
   const allowedOrigins = []
   const storage = new Storage()
@@ -30,28 +36,28 @@ exports.sync = async (req, res) => {
   try {
     body = JSON.parse(req.body)
   } catch (e) {
-    console.error('Error: body cannot be parsed as JSON')
-    return res.status(400).send('invalid body')
+    console.error('Error: Invalid payload')
+    return res.status(400).send()
   }
 
   if (!validateBody(body)) {
-    console.error('Error: Invalid body')
-    return res.status(400).send('<!-- -->')
+    console.error('Error: Payload can not be validated')
+    return res.status(400).send()
   }
 
   try {
     message = JSON.parse(body.Message)
   } catch (e) {
-    console.error('Error: body.Message cannot be parsed as JSON')
+    console.error(`Error: body.Message cannot be parsed as JSON ${message}`)
     return res.status(400).send('invalid body.Message value')
   }
 
   if (!message.Records) {
-    console.error('No records to be synced or missing/wrong data')
+    console.error(`Error: No records to be synced or missing/wrong data: ${JSON.stringify(message)}`)
     return res.status(404).send()
   }
 
-  console.info('====== Objects to be synced', message.Records.map(r => r.s3.object.key))
+  console.log(`Objects to be synced: ${message.Records.map(r => r.s3.object.key)}`)
 
   await asyncForEach(message.Records, async record => {
     const key = record.s3.object.key
@@ -61,7 +67,7 @@ exports.sync = async (req, res) => {
       Key: key
     }
     console.log(`Syncing ${key}`)
-    new Promise(function (resolve, reject) {
+    const pipe = new Promise(function (resolve, reject) {
       s3.getObject(params)
         .createReadStream()
         .pipe(destinationObject.createWriteStream())
@@ -70,11 +76,12 @@ exports.sync = async (req, res) => {
           resolve()
         })
         .on('finish', () => {
-          console.info(`Synced ${key}`)
+          console.log(`Synced ${key}`)
           resolve()
         })
     })
+    await pipe
   });
-  console.info('terminate function')
+  console.log('terminate function')
   return res.status(200).send()
 }
